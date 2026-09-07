@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "861400423856",
+    "project_id": "sgzipbee",
+    "storage_bucket": "sgzipbee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:861400423856:android:cec1a61ae2b40bb7980a75",
+        "android_client_info": {
+          "package_name": "sg.com.zipbee.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADb5qDVAGZN23lIhy-2CXrQE931SZTnEU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:861400423856:android:c615f5a9d9343a62980a75",
+        "android_client_info": {
+          "package_name": "sg.com.zipbee.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADb5qDVAGZN23lIhy-2CXrQE931SZTnEU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
