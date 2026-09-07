@@ -1,0 +1,86 @@
+name: ZipBee
+description: "A new Flutter project."
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+8
+# Update Date: 18 August
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_dotenv: ^5.2.1
+
+  cupertino_icons: ^1.0.8
+  get: ^4.7.2
+  flutter_screenutil: ^5.9.3
+  google_fonts: ^6.3.2
+  flutter_easyloading: ^3.0.5
+  slide_to_act: ^2.0.0
+  share_plus: ^12.0.1
+  intl: ^0.20.2
+  http: ^1.6.0
+  logger: ^2.6.2
+  flutter_local_notifications: ^19.5.0
+  url_launcher: ^6.3.2
+  shared_preferences: ^2.5.4
+  country_code_picker: ^3.4.1
+  google_maps_flutter: ^2.14.0
+  google_maps_flutter_android: ^2.18.6
+  google_maps_flutter_platform_interface: ^2.10.0
+  location: ^8.0.1
+  flutter_polyline_points: ^3.1.0
+  socket_io_client: ^3.1.3
+  flutter_stripe: ^12.1.1
+  flutter_typeahead: ^5.2.0
+  get_storage: ^2.1.1
+  carousel_slider: ^5.1.1
+  image_picker: ^1.2.1
+  flutter_slidable: ^4.0.3
+  file_picker: ^10.3.10
+  flutter_native_contact_picker: ^0.0.11
+  firebase_storage: ^13.4.3 
+  firebase_core: ^4.11.0 
+  firebase_messaging: ^16.4.1 
+
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/new_app_icon.png"
+  remove_alpha_ios: true
+
+
+flutter:
+  uses-material-design: true
+  config:
+    enable-swift-package-manager: false
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - .env
+    - assets/images/
+    - assets/icons/
+    - assets/icons/delivery_icons/
+
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package

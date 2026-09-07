@@ -1,0 +1,32 @@
+# Flutter/Dart build and tool files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+/build/
+
+# Environment files
+.env
+!.env.example
+
+# Android specific ignores
+.gradle/
+local.properties
+**/android/key.properties
+**/*.keystore
+**/*.jks
+**/*.apk
+**/*.aab
+
+# iOS specific ignores
+**/*.xcworkspace
+**/Pods/
+**/Podfile.lock
+**/.symlinks/
+**/DerivedData/
+**/.DS_Store
+
+.env 
