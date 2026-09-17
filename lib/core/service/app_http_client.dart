@@ -12,6 +12,40 @@ class AppHttpClient {
     return Uri.parse(url.toString());
   }
 
+  // ─── Global Request / Response Logger ────────────────────────────────────
+  static void _log({
+    required String method,
+    required Uri uri,
+    Object? requestBody,
+    required http.Response response,
+    bool isRetry = false,
+  }) {
+    final tag = isRetry ? ' [RETRY]' : '';
+    const sep = '────────────────────────────────────────────────────────────';
+
+    // Pretty-print JSON when possible, else return raw
+    String pretty(String? raw) {
+      if (raw == null || raw.isEmpty) return '(empty)';
+      try {
+        return const JsonEncoder.withIndent('  ').convert(jsonDecode(raw));
+      } catch (_) {
+        return raw;
+      }
+    }
+
+    final reqBody = requestBody == null
+        ? '(none)'
+        : requestBody is String
+            ? pretty(requestBody)
+            : requestBody.toString();
+
+    debugPrint('\n$sep');
+    debugPrint('🌐 $method$tag  $uri');
+    debugPrint('📤 REQUEST BODY:\n$reqBody');
+    debugPrint('📥 RESPONSE [${response.statusCode}]:\n${pretty(response.body)}');
+    debugPrint(sep);
+  }
+
   /// Checks if an HTTP response represents an unauthorized/expired token (401)
   static bool isUnauthorized(http.Response response) {
     if (response.statusCode == 401) return true;
@@ -51,14 +85,15 @@ class AppHttpClient {
     final uri = _toUri(url);
     final effectiveHeaders = await _prepareHeaders(headers);
     var response = await _inner.get(uri, headers: effectiveHeaders);
+    _log(method: 'GET', uri: uri, response: response);
 
     if (isUnauthorized(response) && !isRetry) {
       debugPrint('⚠️ [AppHttpClient] 401 Unauthorized for GET $uri. Refreshing token...');
       final refreshed = await TokenRefreshService.refreshToken();
       if (refreshed) {
         final retriedHeaders = await _prepareHeaders(headers);
-        debugPrint('🔁 [AppHttpClient] Retrying GET $uri with new access token...');
         response = await _inner.get(uri, headers: retriedHeaders);
+        _log(method: 'GET', uri: uri, response: response, isRetry: true);
       }
     }
     return response;
@@ -80,19 +115,20 @@ class AppHttpClient {
       body: body,
       encoding: encoding,
     );
+    _log(method: 'POST', uri: uri, requestBody: body, response: response);
 
     if (isUnauthorized(response) && !isRetry) {
       debugPrint('⚠️ [AppHttpClient] 401 Unauthorized for POST $uri. Refreshing token...');
       final refreshed = await TokenRefreshService.refreshToken();
       if (refreshed) {
         final retriedHeaders = await _prepareHeaders(headers);
-        debugPrint('🔁 [AppHttpClient] Retrying POST $uri with new access token...');
         response = await _inner.post(
           uri,
           headers: retriedHeaders,
           body: body,
           encoding: encoding,
         );
+        _log(method: 'POST', uri: uri, requestBody: body, response: response, isRetry: true);
       }
     }
     return response;
@@ -114,19 +150,20 @@ class AppHttpClient {
       body: body,
       encoding: encoding,
     );
+    _log(method: 'PUT', uri: uri, requestBody: body, response: response);
 
     if (isUnauthorized(response) && !isRetry) {
       debugPrint('⚠️ [AppHttpClient] 401 Unauthorized for PUT $uri. Refreshing token...');
       final refreshed = await TokenRefreshService.refreshToken();
       if (refreshed) {
         final retriedHeaders = await _prepareHeaders(headers);
-        debugPrint('🔁 [AppHttpClient] Retrying PUT $uri with new access token...');
         response = await _inner.put(
           uri,
           headers: retriedHeaders,
           body: body,
           encoding: encoding,
         );
+        _log(method: 'PUT', uri: uri, requestBody: body, response: response, isRetry: true);
       }
     }
     return response;
@@ -148,19 +185,20 @@ class AppHttpClient {
       body: body,
       encoding: encoding,
     );
+    _log(method: 'PATCH', uri: uri, requestBody: body, response: response);
 
     if (isUnauthorized(response) && !isRetry) {
       debugPrint('⚠️ [AppHttpClient] 401 Unauthorized for PATCH $uri. Refreshing token...');
       final refreshed = await TokenRefreshService.refreshToken();
       if (refreshed) {
         final retriedHeaders = await _prepareHeaders(headers);
-        debugPrint('🔁 [AppHttpClient] Retrying PATCH $uri with new access token...');
         response = await _inner.patch(
           uri,
           headers: retriedHeaders,
           body: body,
           encoding: encoding,
         );
+        _log(method: 'PATCH', uri: uri, requestBody: body, response: response, isRetry: true);
       }
     }
     return response;
@@ -182,19 +220,20 @@ class AppHttpClient {
       body: body,
       encoding: encoding,
     );
+    _log(method: 'DELETE', uri: uri, requestBody: body, response: response);
 
     if (isUnauthorized(response) && !isRetry) {
       debugPrint('⚠️ [AppHttpClient] 401 Unauthorized for DELETE $uri. Refreshing token...');
       final refreshed = await TokenRefreshService.refreshToken();
       if (refreshed) {
         final retriedHeaders = await _prepareHeaders(headers);
-        debugPrint('🔁 [AppHttpClient] Retrying DELETE $uri with new access token...');
         response = await _inner.delete(
           uri,
           headers: retriedHeaders,
           body: body,
           encoding: encoding,
         );
+        _log(method: 'DELETE', uri: uri, requestBody: body, response: response, isRetry: true);
       }
     }
     return response;
