@@ -122,15 +122,23 @@ class SenderController extends GetxController {
     final destData = destRes['body'] as Map<String, dynamic>? ?? {};
     final dataWrapper = destData['data'] as Map<String, dynamic>? ?? {};
 
-    // Try to extract ID from either 'result' or nested 'data'
-    var actualDestData =
-        (dataWrapper['result'] as Map<String, dynamic>?) ??
-        (dataWrapper['data'] as Map<String, dynamic>?) ??
-        {};
+    // Try to extract ID from either dataWrapper directly, 'result', or nested 'data'
+    Map<String, dynamic> actualDestData = {};
+    if (dataWrapper.containsKey('id')) {
+      actualDestData = dataWrapper;
+    } else if (dataWrapper['result'] is Map<String, dynamic>) {
+      actualDestData = dataWrapper['result'] as Map<String, dynamic>;
+    } else if (dataWrapper['data'] is Map<String, dynamic>) {
+      actualDestData = dataWrapper['data'] as Map<String, dynamic>;
+    } else if (destData.containsKey('id')) {
+      actualDestData = destData;
+    }
 
     debugPrint('✅ DESTINATION CREATED: ${jsonEncode(actualDestData)}');
 
-    final destinationId = actualDestData['id'] as int? ?? 0;
+    final destinationId = actualDestData['id'] is int
+        ? actualDestData['id'] as int
+        : int.tryParse(actualDestData['id']?.toString() ?? '') ?? 0;
     debugPrint('📋 Destination ID: $destinationId');
 
     if (destinationId == 0) {
