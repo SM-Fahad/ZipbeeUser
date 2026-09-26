@@ -523,7 +523,8 @@ class ActiveOrderDetailsScreen extends StatelessWidget {
     final status = liveOrder.status.trim().toUpperCase();
     final isTerminalOrPending = status == 'PENDING' ||
         status == 'CANCELLED' ||
-        status == 'COMPLETED';
+        status == 'COMPLETED' ||
+        status == 'EXPIRED';
 
     if (isTerminalOrPending) {
       return const SizedBox.shrink();

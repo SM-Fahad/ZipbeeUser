@@ -32,7 +32,8 @@ class OrderScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primaryButtonColor),
+                  border: Border.all(
+                      color: AppColors.primaryButtonColor, width: 1.2),
                 ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -235,7 +236,9 @@ class OrderScreen extends StatelessWidget {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  SizedBox(width: 10,),
+                                  SizedBox(
+                                    width: 10,
+                                  ),
                                   Text(
                                     "\$${item.total.toStringAsFixed(2)}",
                                     style: getTextStyle(
@@ -244,38 +247,38 @@ class OrderScreen extends StatelessWidget {
                                       color: AppColors.primaryButtonColor,
                                     ),
                                   ),
-                                  Spacer(), 
-                                  // e-recipt button 
+                                  Spacer(),
+                                  // e-recipt button
                                   // if (item.status == "COMPLETED" ||
                                   //     controller.selectOrderListIndex.value == 1)
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            AppColors.primaryButtonColor,
-                                        elevation: 0,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          AppColors.primaryButtonColor,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
                                       ),
-                                      onPressed: () {
-                                        controller.sendEReceipt(item.orderId);
-                                      },
-                                      child: Text(
-                                        "Send e-receipt",
-                                        style: getTextStyle(
-                                          color: AppColors.fontColor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
                                       ),
                                     ),
+                                    onPressed: () {
+                                      controller.sendEReceipt(item.orderId);
+                                    },
+                                    child: Text(
+                                      "Send e-receipt",
+                                      style: getTextStyle(
+                                        color: AppColors.fontColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],

@@ -15,7 +15,7 @@ class OrderController extends GetxController {
   final RxBool isDetailLoading = false.obs;
   final RxBool isFavoriteUpdating = false.obs;
 
-  final orderTabs = ["Pending", "Active", "Completed", "Cancelled"];
+  final orderTabs = ["Pending", "Active", "Completed", "Cancelled", "Expired"];
   final RxList<OrderModel> orderList = <OrderModel>[].obs;
   final Rxn<OrderModel> singleOrder = Rxn<OrderModel>();
 
@@ -42,6 +42,8 @@ class OrderController extends GetxController {
         return "COMPLETED";
       case 3:
         return "CANCELLED";
+      case 4:
+        return "EXPIRED";
       default:
         return "PENDING";
     }
