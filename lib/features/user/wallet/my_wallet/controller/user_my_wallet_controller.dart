@@ -109,6 +109,7 @@ class UserMyWalletController extends GetxController with WidgetsBindingObserver 
   }) async {
     try {
       final token = await SharedPreferencesHelper.getToken();
+      userId ??= await SharedPreferencesHelper.getOrExtractUserId();
       if (token == null || userId == null) return;
 
       isLoading.value = true;
@@ -137,7 +138,23 @@ class UserMyWalletController extends GetxController with WidgetsBindingObserver 
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
-        final List<dynamic> dataList = body['data'] ?? [];
+        List<dynamic> dataList = [];
+        if (body is List) {
+          dataList = body;
+        } else if (body is Map) {
+          final data = body['data'];
+          if (data is List) {
+            dataList = data;
+          } else if (data is Map && data['data'] is List) {
+            dataList = data['data'];
+          } else if (data is Map && data['rows'] is List) {
+            dataList = data['rows'];
+          } else if (body['dataList'] is List) {
+            dataList = body['dataList'];
+          } else if (body['result'] is List) {
+            dataList = body['result'];
+          }
+        }
 
         recentTransactionList.clear();
         showAllTransactions.value = false;
