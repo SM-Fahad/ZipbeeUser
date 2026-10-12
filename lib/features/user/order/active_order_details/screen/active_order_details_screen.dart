@@ -1,7 +1,13 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:ZipBee/core/api_end_point/api_end_point.dart';
+import 'package:ZipBee/core/service/app_http_client.dart';
+import 'package:ZipBee/core/service/socket_service.dart';
+import 'package:ZipBee/core/shared_prefference_service/shared_pref.dart';
+import 'package:flutter/services.dart';
 import 'package:ZipBee/features/user/finding_raider/screnn/review_view.dart';
 import 'package:ZipBee/features/user/finding_raider/services/share_reward_service.dart';
 import 'package:ZipBee/features/user/finding_raider/utils/ride_share_message_builder.dart';
@@ -22,6 +28,9 @@ import 'package:ZipBee/core/common/widgets/custom_button.dart';
 import 'package:ZipBee/features/user/finding_raider/controller/rider_controller.dart';
 import 'package:ZipBee/core/utils/custom_map_marker_helper.dart';
 import 'package:ZipBee/features/user/stacked/order_stacked_delivery/controller/stacked_order_controller.dart';
+import 'package:ZipBee/features/user/order/completed_order_details/completed_order_details_screen/screen/completed_order_details_screen.dart';
+import 'package:ZipBee/core/service/firebase/notification_receve.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:get/get.dart';
@@ -58,6 +67,16 @@ class ActiveOrderDetailsController extends GetxController {
   LatLng? _lastDriverPolylineLoc;
   Worker? _riderLocWorker;
 
+  Timer? _orderSyncTimer;
+  StreamSubscription<RemoteMessage>? _fcmSubscription;
+  StreamSubscription<RemoteMessage>? _localFcmSubscription;
+  StreamSubscription<MapEntry<String, dynamic>>? _socketEventsSubscription;
+  bool _hasNavigatedToCompleted = false;
+  Function(dynamic)? _riderAssignedHandler;
+  Function(dynamic)? _orderStatusUpdatedHandler;
+  Function(dynamic)? _orderAssignedHandler;
+  Function(dynamic)? _orderCompletedHandler;
+
   @override
   void onInit() {
     super.onInit();
@@ -72,12 +91,27 @@ class ActiveOrderDetailsController extends GetxController {
     riderCtrl.isPriorited.value =
         initialOrder.isPriorited || initialOrder.priorityFee > 0;
 
+    // Reset singleOrder to current order if stale or switching orders
+    if (orderCtrl.singleOrder.value?.orderId != initialOrder.orderId) {
+      orderCtrl.singleOrder.value = initialOrder;
+    }
+
+    final currentStatus = (orderCtrl.singleOrder.value?.status ?? initialOrder.status).trim().toUpperCase();
+    if (currentStatus == 'COMPLETED') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToCompletedScreen(orderCtrl.singleOrder.value ?? initialOrder);
+      });
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final idInt = int.tryParse(initialOrder.orderId) ?? 0;
-      if (idInt > 0) {
-        riderCtrl.fetchOrderData(idInt, showLoader: false);
+      if (initialIdInt > 0) {
+        riderCtrl.fetchOrderData(initialIdInt, showLoader: false);
       }
       orderCtrl.fetchOrderDetail(initialOrder.orderId);
+      _initSocketAndRealtime();
+      _initFcmListener();
+      _startOrderSyncPolling();
     });
 
     ever(riderCtrl.riderLocation, (_) => _updateMarkers());
@@ -92,6 +126,10 @@ class ActiveOrderDetailsController extends GetxController {
         riderCtrl.priorityFee.value = single.priorityFee;
         riderCtrl.isPriorited.value =
             single.isPriorited || single.priorityFee > 0;
+        final status = single.status.trim().toUpperCase();
+        if (status == 'COMPLETED') {
+          _navigateToCompletedScreen(single);
+        }
       }
       _updateMarkers();
     });
@@ -130,8 +168,453 @@ class ActiveOrderDetailsController extends GetxController {
     });
   }
 
+  void _navigateToCompletedScreen(OrderModel completedOrder) {
+    if (_hasNavigatedToCompleted) return;
+    _hasNavigatedToCompleted = true;
+
+    debugPrint('🏁 Order #${completedOrder.orderId} completed! Transitioning to CompletedOrderDetailsScreen');
+    try {
+      HapticFeedback.mediumImpact();
+    } catch (_) {}
+
+    Get.off(() => CompletedOrderDetailsScreen(order: completedOrder));
+  }
+
+  void _onSocketConnected() {
+    final initialIdInt = int.tryParse(initialOrder.orderId) ?? 0;
+    if (initialIdInt > 0) {
+      debugPrint('📡 Subscribing to order room: order:subscribe for orderId: $initialIdInt');
+      final socketService = SocketService();
+      socketService.emit('order:subscribe', {'orderId': initialIdInt});
+    }
+  }
+
+  void _initFcmListener() {
+    _fcmSubscription?.cancel();
+    _localFcmSubscription?.cancel();
+
+    _fcmSubscription = FirebaseMessaging.onMessage.listen(_handleIncomingFcmMessage);
+    _localFcmSubscription = FirebaseNotificationReceive.onForegroundMessageStream.stream.listen(_handleIncomingFcmMessage);
+  }
+
+  void _handleIncomingFcmMessage(RemoteMessage message) {
+    final title = message.notification?.title ?? message.data['title']?.toString() ?? '';
+    final body = message.notification?.body ?? message.data['body']?.toString() ?? '';
+    final data = message.data;
+    debugPrint('📩 FCM message in ActiveOrderDetails: title="$title", body="$body", data=$data');
+
+    final currentIdStr = initialOrder.orderId;
+    final int currentIdInt = int.tryParse(currentIdStr) ?? 0;
+    final String paddedOrderId = currentIdInt > 0 ? 'ORD-${currentIdInt.toString().padLeft(6, '0')}' : '';
+
+    final bool matchesOrder = body.contains(currentIdStr) ||
+        (paddedOrderId.isNotEmpty && body.contains(paddedOrderId)) ||
+        data['orderId']?.toString() == currentIdStr ||
+        data['order_id']?.toString() == currentIdStr ||
+        data['id']?.toString() == currentIdStr;
+
+    final titleLower = title.toLowerCase();
+    final bodyLower = body.toLowerCase();
+
+    // Check completion condition
+    final bool isCompleted = titleLower.contains('trip completed') ||
+        titleLower.contains('order completed') ||
+        bodyLower.contains('completed successfully') ||
+        (matchesOrder && (titleLower.contains('completed') || bodyLower.contains('completed'))) ||
+        data['status']?.toString().toUpperCase() == 'COMPLETED' ||
+        data['order_status']?.toString().toUpperCase() == 'COMPLETED';
+
+    if (isCompleted) {
+      debugPrint('🏁 FCM Trip Completed detected for order #$currentIdStr! Transitioning screen...');
+      final current = orderCtrl.singleOrder.value ?? initialOrder;
+      final updated = current.copyWith(status: 'COMPLETED');
+      orderCtrl.singleOrder.value = updated;
+      orderCtrl.fetchOrderDetail(currentIdStr, showLoader: false);
+      orderCtrl.fetchOrders(isRefresh: true);
+      _navigateToCompletedScreen(updated);
+      return;
+    }
+
+    if (matchesOrder ||
+        titleLower.contains('trip') ||
+        titleLower.contains('driver') ||
+        bodyLower.contains('driver')) {
+      if (titleLower.contains('arrived') || bodyLower.contains('arrived')) {
+        debugPrint('📍 Driver arrived detected for order #$currentIdStr');
+        orderCtrl.fetchOrderDetail(currentIdStr, showLoader: false);
+        if (currentIdInt > 0) {
+          riderCtrl.fetchOrderData(currentIdInt, showLoader: false);
+        }
+      } else {
+        orderCtrl.fetchOrderDetail(currentIdStr, showLoader: false);
+      }
+    }
+  }
+
+  Future<void> _initSocketAndRealtime() async {
+    final initialIdInt = int.tryParse(initialOrder.orderId) ?? 0;
+    if (initialIdInt <= 0) return;
+
+    try {
+      final token = await SharedPreferencesHelper.getAccessToken();
+      if (token == null || token.isEmpty) return;
+
+      final socketService = SocketService();
+      if (!socketService.isConnected) {
+        await socketService.connect(token);
+      }
+
+      // Ensure RiderController has location socket initialized as well
+      riderCtrl.initLocationSocket();
+
+      // Register connect callback (runs immediately if already connected, or on connect/reconnect)
+      socketService.onConnect(_onSocketConnected);
+
+      socketService.on('order:subscribed', (data) {
+        debugPrint('✅ Order room subscription acknowledged by server: $data');
+      });
+
+      _riderAssignedHandler = (data) {
+        debugPrint('⚡ Socket event received: driver assigned -> $data');
+        _handleDriverAssigned(data);
+      };
+
+      _orderStatusUpdatedHandler = (data) {
+        debugPrint('⚡ Socket event received: order:status_updated -> $data');
+        if (data is Map) {
+          final incomingOrderId = int.tryParse(
+            (data['orderId'] ?? data['order_id'] ?? data['order']?['id'] ?? data['id'])?.toString() ?? '',
+          );
+          if (incomingOrderId != null && initialIdInt > 0 && incomingOrderId != initialIdInt) {
+            return;
+          }
+
+          final status = (data['order_status'] ??
+                  data['status'] ??
+                  (data['order'] is Map ? (data['order']['order_status'] ?? data['order']['status']) : null))
+              ?.toString()
+              .toUpperCase();
+
+          if (status == 'COMPLETED') {
+            _handleOrderCompleted(data);
+            return;
+          }
+
+          if (status != null && status.isNotEmpty) {
+            final current = orderCtrl.singleOrder.value ?? initialOrder;
+            orderCtrl.singleOrder.value = current.copyWith(status: status);
+          }
+
+          if (status == 'ONGOING' || data['driver'] != null || data['riderId'] != null) {
+            _handleDriverAssigned(data);
+          } else if (status != null && status != 'PENDING') {
+            orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+          }
+        }
+      };
+
+      _orderAssignedHandler = (data) {
+        debugPrint('⚡ Socket event received: order:assigned -> $data');
+        _handleDriverAssigned(data);
+      };
+
+      _orderCompletedHandler = (data) {
+        debugPrint('⚡ Socket event received: completion event -> $data');
+        _handleOrderCompleted(data);
+      };
+
+      socketService.on('user:rider_assigned', _riderAssignedHandler!);
+      socketService.on('rider_assigned', _riderAssignedHandler!);
+      socketService.on('order:status_updated', _orderStatusUpdatedHandler!);
+      socketService.on('order:status_update', _orderStatusUpdatedHandler!);
+      socketService.on('order:assigned', _orderAssignedHandler!);
+      socketService.on('order_assigned', _orderAssignedHandler!);
+      socketService.on('order:completed', _orderCompletedHandler!);
+      socketService.on('order_completed', _orderCompletedHandler!);
+      socketService.on('trip:completed', _orderCompletedHandler!);
+      socketService.on('trip_completed', _orderCompletedHandler!);
+      socketService.on('user:trip_completed', _orderCompletedHandler!);
+      socketService.on('order:stop_completed', (data) {
+        debugPrint('⚡ Socket event received: order:stop_completed -> $data');
+        orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+      });
+      socketService.on('driver:arrived', (data) {
+        debugPrint('⚡ Socket event received: driver:arrived -> $data');
+        orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+      });
+      socketService.on('order:arrived', (data) {
+        debugPrint('⚡ Socket event received: order:arrived -> $data');
+        orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+      });
+      // Listen to all socket events as a comprehensive safety net
+      _socketEventsSubscription?.cancel();
+      _socketEventsSubscription = socketService.incomingEvents.listen((entry) {
+        final eventName = entry.key;
+        final eventData = entry.value;
+
+        final lower = eventName.toLowerCase();
+        if (lower.contains('complete') ||
+            (eventData is Map &&
+                (eventData['status']?.toString().toUpperCase() == 'COMPLETED' ||
+                    eventData['order_status']?.toString().toUpperCase() == 'COMPLETED'))) {
+          debugPrint('🏁 Incoming socket event indicated completion ($eventName): $eventData');
+          _handleOrderCompleted(eventData);
+        } else if (lower.contains('arrived')) {
+          debugPrint('📍 Incoming socket event indicated driver arrival ($eventName)');
+          orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+          if (initialIdInt > 0) {
+            riderCtrl.fetchOrderData(initialIdInt, showLoader: false);
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ _initSocketAndRealtime error: $e');
+    }
+  }
+
+  void _handleOrderCompleted(dynamic data) {
+    final initialIdInt = int.tryParse(initialOrder.orderId) ?? 0;
+    if (data is Map) {
+      final incomingOrderId = int.tryParse(
+        (data['orderId'] ?? data['order_id'] ?? data['order']?['id'] ?? data['id'])?.toString() ?? '',
+      );
+      if (incomingOrderId != null && initialIdInt > 0 && incomingOrderId != initialIdInt) {
+        return;
+      }
+    }
+
+    debugPrint('🏁 Order completion event processed for #${initialOrder.orderId}');
+    final current = orderCtrl.singleOrder.value ?? initialOrder;
+    final updated = current.copyWith(status: 'COMPLETED');
+    orderCtrl.singleOrder.value = updated;
+    orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+    orderCtrl.fetchOrders(isRefresh: true);
+    _navigateToCompletedScreen(updated);
+  }
+
+  void _handleDriverAssigned(dynamic data) {
+    final initialIdInt = int.tryParse(initialOrder.orderId) ?? 0;
+    if (data is Map) {
+      final incomingOrderId = int.tryParse(
+        (data['orderId'] ?? data['order_id'] ?? data['order']?['id'] ?? data['id'])?.toString() ?? '',
+      );
+      if (incomingOrderId != null && initialIdInt > 0 && incomingOrderId != initialIdInt) {
+        debugPrint('⏭️ Event is for order $incomingOrderId, but current order is $initialIdInt. Ignoring.');
+        return;
+      }
+    }
+
+    debugPrint('🎉 Driver assigned! Updating order details in real-time. Data: $data');
+
+    // 1. Subtle haptic feedback as per backend instructions
+    try {
+      HapticFeedback.mediumImpact();
+    } catch (_) {}
+
+    // Extract driver data
+    final driverData = (data is Map && data['driver'] is Map)
+        ? data['driver'] as Map
+        : (data is Map && data['order'] is Map && data['order']['assign_rider'] is Map)
+            ? data['order']['assign_rider'] as Map
+            : null;
+
+    final riderName = driverData?['name']?.toString() ??
+        driverData?['raider_name']?.toString() ??
+        '';
+    final riderPhone = driverData?['phone']?.toString() ??
+        driverData?['contact_number']?.toString() ??
+        '';
+    final riderPhoto = driverData?['photo']?.toString() ??
+        driverData?['image']?.toString() ??
+        '';
+    final vehicleType = driverData?['vehicleType']?.toString() ??
+        driverData?['vehicle_type']?.toString() ??
+        '';
+    final riderRating = double.tryParse((driverData?['rating'] ?? '0').toString()) ?? 0.0;
+    final riderId = int.tryParse((data is Map ? (data['riderId'] ?? driverData?['id']) : null)?.toString() ?? '');
+
+    // 2. Immediate driver location update if available
+    if (driverData != null && driverData['location'] is Map) {
+      final loc = driverData['location'] as Map;
+      final lat = double.tryParse(loc['lat']?.toString() ?? '');
+      final lng = double.tryParse(loc['lng']?.toString() ?? '');
+      if (lat != null && lng != null && lat != 0.0 && lng != 0.0) {
+        riderCtrl.riderLocation.value = LatLng(lat, lng);
+        riderCtrl.lastLocationUpdateTime.value = DateTime.now();
+        riderCtrl.isRiderActive.value = true;
+      }
+    }
+
+    // 3. IMMEDIATE reactive state update so header and status update in REAL TIME
+    String newStatus = 'ONGOING';
+    if (data is Map) {
+      final s = (data['order_status'] ??
+              data['status'] ??
+              (data['order'] is Map ? (data['order']['order_status'] ?? data['order']['status']) : null))
+          ?.toString();
+      if (s != null && s.isNotEmpty) {
+        newStatus = s.toUpperCase();
+      }
+    }
+
+    if (newStatus == 'COMPLETED') {
+      _handleOrderCompleted(data);
+      return;
+    }
+
+    if (data is Map && data['order'] is Map) {
+      try {
+        final orderMap = Map<String, dynamic>.from(data['order'] as Map);
+        if (driverData != null && orderMap['driver'] == null) {
+          orderMap['driver'] = driverData;
+        }
+        orderMap['status'] = newStatus;
+        orderMap['order_status'] = newStatus;
+
+        final stops = orderMap['orderStops'] ?? [];
+        if (stops is List && stops.isNotEmpty) {
+          final pickup = stops.firstWhere((s) => s['type'] == 'PICKUP', orElse: () => {});
+          final drops = stops.where((s) => s['type'] == 'DROP').toList();
+          orderMap['pickup_address'] ??= pickup['address'];
+          orderMap['pickup_lat'] ??= pickup['latitude'];
+          orderMap['pickup_long'] ??= pickup['longitude'];
+          if (drops.isNotEmpty) {
+            orderMap['drop_off_address'] ??= drops.first['address'];
+            orderMap['drop_off_lat'] ??= drops.first['latitude'];
+            orderMap['drop_off_long'] ??= drops.first['longitude'];
+          }
+        }
+        orderCtrl.singleOrder.value = OrderModel.fromJson(orderMap);
+      } catch (e) {
+        debugPrint('⚠️ Error parsing order from payload: $e');
+      }
+    } else {
+      // If data['order'] is not present, update singleOrder immediately via copyWith
+      final current = orderCtrl.singleOrder.value ?? initialOrder;
+      orderCtrl.singleOrder.value = current.copyWith(
+        status: newStatus,
+        assignRiderName: riderName.isNotEmpty ? riderName : current.assignRiderName,
+        assignRiderPhone: riderPhone.isNotEmpty ? riderPhone : current.assignRiderPhone,
+        assignRiderImage: riderPhoto.isNotEmpty ? riderPhoto : current.assignRiderImage,
+        assignRiderRating: riderRating > 0 ? riderRating : current.assignRiderRating,
+        riderId: riderId ?? current.riderId,
+        assignedRiderId: riderId ?? current.assignedRiderId,
+        vehicleType: vehicleType.isNotEmpty ? vehicleType : current.vehicleType,
+      );
+    }
+
+    // 4. Also update rider controller immediately
+    if (riderName.isNotEmpty) {
+      riderCtrl.assignRiderName.value = riderName;
+    }
+    if (riderPhone.isNotEmpty) {
+      riderCtrl.assignRiderPhone.value = riderPhone;
+    }
+    if (vehicleType.isNotEmpty) {
+      riderCtrl.vehicleType.value = vehicleType;
+    }
+    riderCtrl.assignRiderNull.value = false;
+
+    // 5. Re-fetch full order details and rider controller data from backend in background
+    orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+    if (initialIdInt > 0) {
+      riderCtrl.fetchOrderData(initialIdInt, showLoader: false);
+    }
+    orderCtrl.fetchOrders(isRefresh: true);
+  }
+
+  void _startOrderSyncPolling() {
+    _orderSyncTimer?.cancel();
+    _orderSyncTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      final currentOrder = orderCtrl.singleOrder.value ?? initialOrder;
+      final liveStatus = currentOrder.status.trim().toUpperCase();
+
+      if (liveStatus == 'COMPLETED' || liveStatus == 'CANCELLED' || _hasNavigatedToCompleted) {
+        _orderSyncTimer?.cancel();
+        return;
+      }
+
+      try {
+        final token = await SharedPreferencesHelper.getAccessToken();
+        if (token == null || token.isEmpty) return;
+
+        final url = ApiEndPoint.getOrder.replaceAll("{orderId}", initialOrder.orderId);
+        final response = await AppHttpClient.get(
+          Uri.parse(url),
+          headers: {"Authorization": "Bearer $token"},
+        );
+
+        if (response.statusCode == 200) {
+          final decoded = json.decode(response.body);
+          final orderData = decoded['data'];
+          if (orderData is Map) {
+            final status = (orderData['order_status'] ?? orderData['status'] ?? '').toString().toUpperCase();
+            final assignRiderId = orderData['assign_rider_id'] ?? orderData['assign_rider']?['id'];
+
+            if (status == 'COMPLETED') {
+              debugPrint('🏁 Order sync poll detected COMPLETED! Redirecting...');
+              _orderSyncTimer?.cancel();
+              final updated = (orderCtrl.singleOrder.value ?? initialOrder).copyWith(status: 'COMPLETED');
+              orderCtrl.singleOrder.value = updated;
+              _navigateToCompletedScreen(updated);
+            } else if (liveStatus == 'PENDING' && status != 'PENDING' && assignRiderId != null) {
+              debugPrint('✅ Order sync poll found driver assigned! Status: $status, Rider: $assignRiderId');
+              _handleDriverAssigned({
+                'orderId': orderData['id'] ?? initialOrder.orderId,
+                'order_status': status,
+                'status': status,
+                'driver': orderData['assign_rider'],
+                'order': orderData,
+              });
+            } else if (status != liveStatus) {
+              debugPrint('🔄 Order sync poll detected status change: $liveStatus -> $status');
+              final updated = (orderCtrl.singleOrder.value ?? initialOrder).copyWith(status: status);
+              orderCtrl.singleOrder.value = updated;
+              orderCtrl.fetchOrderDetail(initialOrder.orderId, showLoader: false);
+            }
+          }
+        }
+      } catch (err) {
+        debugPrint('⚠️ Order sync polling error: $err');
+      }
+    });
+  }
+
   @override
   void onClose() {
+    _orderSyncTimer?.cancel();
+    _fcmSubscription?.cancel();
+    _localFcmSubscription?.cancel();
+    _socketEventsSubscription?.cancel();
+    final initialIdInt = int.tryParse(initialOrder.orderId) ?? 0;
+    final socketService = SocketService();
+    socketService.offConnect(_onSocketConnected);
+    if (socketService.hasSocket) {
+      if (initialIdInt > 0) {
+        debugPrint('🔌 Emitting order:unsubscribe for order $initialIdInt');
+        socketService.emit('order:unsubscribe', {'orderId': initialIdInt});
+      }
+      if (_riderAssignedHandler != null) {
+        socketService.off('user:rider_assigned', _riderAssignedHandler!);
+        socketService.off('rider_assigned', _riderAssignedHandler!);
+      }
+      if (_orderStatusUpdatedHandler != null) {
+        socketService.off('order:status_updated', _orderStatusUpdatedHandler!);
+        socketService.off('order:status_update', _orderStatusUpdatedHandler!);
+      }
+      if (_orderAssignedHandler != null) {
+        socketService.off('order:assigned', _orderAssignedHandler!);
+        socketService.off('order_assigned', _orderAssignedHandler!);
+      }
+      if (_orderCompletedHandler != null) {
+        socketService.off('order:completed', _orderCompletedHandler!);
+        socketService.off('order_completed', _orderCompletedHandler!);
+        socketService.off('trip:completed', _orderCompletedHandler!);
+        socketService.off('trip_completed', _orderCompletedHandler!);
+        socketService.off('user:trip_completed', _orderCompletedHandler!);
+      }
+      socketService.off('order:subscribed');
+    }
     _riderLocWorker?.dispose();
     mapController = null;
     super.onClose();
@@ -435,24 +918,47 @@ class ActiveOrderDetailsController extends GetxController {
   }
 }
 
-class ActiveOrderDetailsScreen extends StatelessWidget {
+class ActiveOrderDetailsScreen extends StatefulWidget {
   final OrderModel order;
 
   const ActiveOrderDetailsScreen({super.key, required this.order});
 
   @override
-  Widget build(BuildContext context) {
-    final activeOrderCtrl = Get.put(
-      ActiveOrderDetailsController(order),
-      tag: order.orderId,
-    );
+  State<ActiveOrderDetailsScreen> createState() =>
+      _ActiveOrderDetailsScreenState();
+}
 
+class _ActiveOrderDetailsScreenState extends State<ActiveOrderDetailsScreen> {
+  late final ActiveOrderDetailsController activeOrderCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    activeOrderCtrl = Get.put(
+      ActiveOrderDetailsController(widget.order),
+      tag: widget.order.orderId,
+    );
+  }
+
+  @override
+  void dispose() {
+    Get.delete<ActiveOrderDetailsController>(
+      tag: widget.order.orderId,
+      force: true,
+    );
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroungColor,
       body: SafeArea(
         child: Obx(() {
-          final liveOrder = activeOrderCtrl.orderCtrl.singleOrder.value ?? order;
-          final routeStops = activeOrderCtrl.orderCtrl.getOrderedRouteStops(liveOrder);
+          final liveOrder =
+              activeOrderCtrl.orderCtrl.singleOrder.value ?? widget.order;
+          final routeStops =
+              activeOrderCtrl.orderCtrl.getOrderedRouteStops(liveOrder);
           activeOrderCtrl.syncRoute(routeStops);
 
           return Stack(
@@ -586,8 +1092,8 @@ class ActiveOrderDetailsScreen extends StatelessWidget {
     final initialStop = routeStops.isNotEmpty
         ? routeStops.first
         : {
-            'latitude': order.pickupLat ?? 1.3521,
-            'longitude': order.pickupLong ?? 103.8198,
+            'latitude': widget.order.pickupLat ?? 1.3521,
+            'longitude': widget.order.pickupLong ?? 103.8198,
           };
 
     final lat = (initialStop['latitude'] as num?)?.toDouble() ?? 1.3521;

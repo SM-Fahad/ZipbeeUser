@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:ZipBee/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -44,10 +45,19 @@ class FirebaseNotificationReceive {
     );
   }
 
+  static final StreamController<RemoteMessage> onForegroundMessageStream =
+      StreamController<RemoteMessage>.broadcast();
+
   static void listenForegroundMessages() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('Foreground message: ${message.notification?.title}');
       debugPrint('Message body: ${message.notification?.body}');
+
+      try {
+        onForegroundMessageStream.add(message);
+      } catch (e) {
+        debugPrint('Error broadcasting foreground message: $e');
+      }
 
       // Show notification in status bar / banner
       _showAndroidNotification(message);

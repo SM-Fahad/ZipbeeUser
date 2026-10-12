@@ -34,7 +34,20 @@ class StackedPaymentController extends GetxController {
     managePaymentController = Get.isRegistered<ManagePaymentController>()
         ? Get.find<ManagePaymentController>()
         : Get.put(ManagePaymentController());
+
+    final UserProfileController profileCtrl =
+        Get.isRegistered<UserProfileController>()
+            ? Get.find<UserProfileController>()
+            : Get.put(UserProfileController());
+    if (profileCtrl.walletBalance.value > 0) {
+      walletBalance.value = profileCtrl.walletBalance.value;
+    }
+    ever(profileCtrl.walletBalance, (double val) {
+      walletBalance.value = val;
+    });
+
     fetchWalletBalance();
+    loadStripeCards();
   }
 
   Future<void> fetchWalletBalance() async {
