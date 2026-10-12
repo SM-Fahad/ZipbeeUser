@@ -130,8 +130,8 @@ class OrderModel {
     final vehicle = json['vehicle'];
     final vehicleMap = vehicle is Map<String, dynamic> ? vehicle : null;
 
-    // Rider safe
-    final rider = json['assign_rider'];
+    // Rider safe (supports REST API 'assign_rider' as well as WebSocket 'driver' payload)
+    final rider = json['assign_rider'] ?? json['driver'];
     final riderMap = rider is Map<String, dynamic> ? rider : null;
 
     final riderRegistrations =
@@ -211,16 +211,22 @@ class OrderModel {
       deliveryLocation: (json['delivery_location'] ?? "").toString(),
       vehicleType: resolvedVehicleName.isNotEmpty
           ? resolvedVehicleName
-          : (vehicleMap?['vehicle_type'] ?? "").toString(),
+          : (json['driver']?['vehicleType'] ??
+                  json['driver']?['vehicle_type'] ??
+                  riderMap?['vehicleType'] ??
+                  riderMap?['vehicle_type'] ??
+                  vehicleMap?['vehicle_type'] ??
+                  "")
+              .toString(),
       total: double.tryParse((json['total_cost'] ?? '0').toString()) ?? 0,
       showReceipt: (json['order_status'] ?? json['status'] ?? '').toString() ==
           "COMPLETED",
       riderId: json['assign_rider_id'] is int
           ? json['assign_rider_id']
-          : int.tryParse((json['assign_rider_id'] ?? '').toString()),
+          : int.tryParse((json['assign_rider_id'] ?? json['riderId'] ?? '').toString()),
       assignedRiderId: riderMap?['id'] is int
           ? riderMap!['id']
-          : int.tryParse(riderMap?['id']?.toString() ?? ''),
+          : int.tryParse((riderMap?['id'] ?? json['riderId'] ?? '').toString()),
       assignRiderRank: (riderMap?['tier']?['name'] ?? '').toString(),
       assignRiderCompletedTrips: riderMap?['completed_orders'] is int
           ? riderMap!['completed_orders'] as int
@@ -292,11 +298,29 @@ class OrderModel {
             json['drop_off_long']?.toString() ??
             '',
       ),
-      assignRiderName: (riderData?['raider_name'] ?? "").toString(),
-      assignRiderPhone: (riderData?['contact_number'] ?? "").toString(),
-      assignRiderImage: riderImageFromOrder,
-      assignRiderRating:
-          double.tryParse((json['formattedAverage'] ?? '0').toString()) ?? 0.0,
+      assignRiderName: (riderData?['raider_name'] ??
+              riderMap?['name'] ??
+              riderMap?['raider_name'] ??
+              "")
+          .toString(),
+      assignRiderPhone: (riderData?['contact_number'] ??
+              riderMap?['phone'] ??
+              riderMap?['contact_number'] ??
+              "")
+          .toString(),
+      assignRiderImage: riderImageFromOrder.isNotEmpty
+          ? riderImageFromOrder
+          : (riderMap?['photo'] ??
+                  riderMap?['image'] ??
+                  riderMap?['profile_image'] ??
+                  '')
+              .toString(),
+      assignRiderRating: double.tryParse((json['formattedAverage'] ??
+                  riderMap?['rating'] ??
+                  riderMap?['raider_rating'] ??
+                  '0')
+              .toString()) ??
+          0.0,
       assignRiderReviews:
           int.tryParse(riderMap?['reviews_count']?.toString() ?? '0') ?? 0,
       assignRiderUserId: riderMap?['userId'] is int
@@ -307,6 +331,10 @@ class OrderModel {
   }
 
   OrderModel copyWith({
+    String? status,
+    String? vehicleType,
+    int? riderId,
+    int? assignedRiderId,
     String? assignRiderName,
     String? assignRiderPhone,
     String? assignRiderImage,
@@ -336,14 +364,14 @@ class OrderModel {
   }) {
     return OrderModel(
       orderId: orderId,
-      status: status,
+      status: status ?? this.status,
       date: date,
       pickupAddress: pickupAddress,
       senderName: senderName,
       recipientName: recipientName ?? this.recipientName,
       dropOffAddress: dropOffAddress,
       deliveryLocation: deliveryLocation,
-      vehicleType: vehicleType,
+      vehicleType: vehicleType ?? this.vehicleType,
       total: total,
       showReceipt: showReceipt,
       assignRiderName: assignRiderName ?? this.assignRiderName,
@@ -351,8 +379,8 @@ class OrderModel {
       assignRiderImage: assignRiderImage ?? this.assignRiderImage,
       assignRiderRating: assignRiderRating ?? this.assignRiderRating,
       assignRiderReviews: assignRiderReviews ?? this.assignRiderReviews,
-      riderId: riderId,
-      assignedRiderId: assignedRiderId,
+      riderId: riderId ?? this.riderId,
+      assignedRiderId: assignedRiderId ?? this.assignedRiderId,
       assignRiderUserId: assignRiderUserId ?? this.assignRiderUserId,
       assignRiderRank: assignRiderRank ?? this.assignRiderRank,
       assignRiderCompletedTrips:
