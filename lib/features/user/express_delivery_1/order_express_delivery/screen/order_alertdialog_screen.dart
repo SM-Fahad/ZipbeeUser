@@ -1,4 +1,5 @@
 import 'package:ZipBee/features/user/express_delivery_1/order_express_delivery/widget/payment_method_widget.dart';
+import 'package:ZipBee/features/user/finding_raider/screnn/finding_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ZipBee/core/common/styles/global_text_style.dart';
@@ -165,7 +166,8 @@ class OrderConfirmationSheet {
                         onPressed: () async {
                           bool success = await controller.confirmOrder(orderId);
                           if (success) {
-                            
+                            Get.back();
+                            Get.to(() => const FindingRiderPage());
                           }
                         },
                         style: ElevatedButton.styleFrom(

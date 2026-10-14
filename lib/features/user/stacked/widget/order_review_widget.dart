@@ -1,6 +1,6 @@
 import 'package:ZipBee/core/common/styles/global_text_style.dart';
 import 'package:ZipBee/features/user/stacked/order_stacked_delivery/controller/stacked_order_controller.dart';
-import 'package:ZipBee/features/user/stacked/order_stacked_delivery/widget/order_confirmation_dialog.dart';
+import 'package:ZipBee/features/user/stacked/order_stacked_delivery/widget/show_order_confirmation_dialog.dart';
 import 'package:ZipBee/features/user/vehicle_type/controller/controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -101,8 +101,7 @@ class OrderReviewWidget extends StatelessWidget {
 
   // Default action if no callback is passed
   void _defaultReviewOrderAction() {
-    // Call the reusable dialog function
-    StackedOrderConfirmationDialog.show();
+    showStackedOrderConfirmationDialog(orderController);
   }
 
   void _openHistoryPopup(BuildContext context) {

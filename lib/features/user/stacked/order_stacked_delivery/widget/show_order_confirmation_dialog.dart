@@ -541,41 +541,7 @@ Future<void> _handlePostOrderSuccessDialogFlow(
   StackedOrderController controller,
 ) async {
   Get.back(); // Closes the summary/confirmation dialog
-
-  if (controller.isAutoConfirmation.value) {
-    Get.to(() => FindingRiderPage());
-    return;
-  }
-
-  final orderId = controller.lastOrderId;
-  var shouldShowFirstOrderDialog = false;
-
-  if (orderId != null && orderId != 0) {
-    final firstOrderRes = await OrderConfirmationService.getFirstOrderStatus(
-      orderId,
-    );
-    final success = firstOrderRes['success'] as bool? ?? false;
-    final body = firstOrderRes['body'] as Map<String, dynamic>? ?? {};
-    final data = body['data'] as Map<String, dynamic>? ?? {};
-    final isFirstOrderData =
-        data['isFirstOrder'] as Map<String, dynamic>? ?? {};
-
-    shouldShowFirstOrderDialog =
-        success && (isFirstOrderData['isFirstOrder'] == true);
-
-    debugPrint(
-      '✅ First order check - OrderId: $orderId, IsFirstOrder: $shouldShowFirstOrderDialog',
-    );
-  } else {
-    debugPrint('⚠️ First order check skipped - invalid order id: $orderId');
-  }
-
-  if (shouldShowFirstOrderDialog) {
-    StackedOrderConfirmationDialog.show();
-    return;
-  }
-
-  StackedOrderSuccessDialog.show();
+  Get.to(() => const FindingRiderPage());
 }
 
 /// Helper - with discount styling for red text
