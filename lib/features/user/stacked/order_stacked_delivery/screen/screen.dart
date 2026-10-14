@@ -1,5 +1,6 @@
 import 'package:ZipBee/core/common/styles/global_text_style.dart';
 import 'package:ZipBee/core/utils/constants/icon_path.dart';
+import 'package:ZipBee/features/user/finding_raider/screnn/finding_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -270,12 +271,9 @@ class StackedOrderControllerScreen extends GetxController {
                       ),
                     ),
                     FilledButton(
-                      onPressed: () async {
+                      onPressed: () {
                         Get.back();
-                        StackedOrderConfirmationDialog.show();
-                        await Future.delayed(Duration(seconds: 3));
-                        Get.back();
-                        StackedOrderSuccessDialog.show();
+                        Get.to(() => const FindingRiderPage());
                       },
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.amber,

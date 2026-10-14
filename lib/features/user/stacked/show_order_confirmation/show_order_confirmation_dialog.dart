@@ -6,6 +6,7 @@ import 'package:ZipBee/features/user/express_delivery_1/order_express_delivery/w
 import 'package:ZipBee/features/user/express_delivery_1/order_express_delivery/widget/order_success_dialog.dart';
 import 'package:ZipBee/features/user/express_delivery_1/order_express_delivery/widget/payment_method_widget.dart';
 import 'package:ZipBee/features/user/stacked/show_order_confirmation/promoCode_dialog.dart';
+import 'package:ZipBee/features/user/finding_raider/screnn/finding_rider_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
@@ -263,12 +264,9 @@ void showOrderConfirmationDialog(
                     ),
                   ),
                   FilledButton(
-                    onPressed: () async {
+                    onPressed: () {
                       Get.back();
-                      OrderConfirmationDialog.show(orderId);
-                      await Future.delayed(Duration(seconds: 3));
-                      Get.back();
-                      OrderSuccessDialog.show(orderId: orderId);
+                      Get.to(() => const FindingRiderPage());
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.amber,
