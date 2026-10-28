@@ -9,6 +9,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:get/get.dart';
 
 import 'package:ZipBee/features/user/home/model/delivery_type_model.dart';
+import 'package:ZipBee/features/user/stacked/stacked_controller/stacked_controller.dart';
 
 class StackedOrderReviewButtonStatic extends StatelessWidget {
   const StackedOrderReviewButtonStatic({super.key});
@@ -101,7 +102,31 @@ class StackedOrderReviewButtonStatic extends StatelessWidget {
             final fee = orderController.totalFee.value;
             final multiplier = orderController.deliveryTypeMultiplier.value;
             final vehicleName = orderController.pricingVehicleName.value;
-            final isReady = vehicleController.selectedVehicle.value != null;
+
+            StackedLocationController? locationController;
+            if (Get.isRegistered<StackedLocationController>()) {
+              locationController = Get.find<StackedLocationController>();
+            }
+
+            final bool hasPickup = locationController != null &&
+                (locationController.senderData.value != null ||
+                    locationController.collectedStops.isNotEmpty);
+
+            final bool hasDropOff = locationController != null &&
+                (locationController.receiverData.value != null ||
+                    locationController.recipientStops.isNotEmpty);
+
+            final bool hasVehicle =
+                vehicleController.selectedVehicle.value != null &&
+                    vehicleController.hasUserSelectedVehicle.value;
+
+            final bool hasValidTotal = total > 0;
+
+            final bool isReady = hasVehicle &&
+                hasPickup &&
+                hasDropOff &&
+                hasValidTotal &&
+                !isLoading;
             final isBreakdownExpanded =
                 orderController.isBreakdownExpanded.value;
 
@@ -242,8 +267,13 @@ class StackedOrderReviewButtonStatic extends StatelessWidget {
                             }
                           : null,
                       style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.all(
-                          isReady ? Colors.amber : Colors.grey.shade300,
+                        backgroundColor: WidgetStateProperty.resolveWith<Color>(
+                          (states) {
+                            if (states.contains(WidgetState.disabled) || !isReady) {
+                              return Colors.grey.shade300;
+                            }
+                            return Colors.amber;
+                          },
                         ),
                       ),
                       child: Text(
@@ -251,7 +281,7 @@ class StackedOrderReviewButtonStatic extends StatelessWidget {
                         style: getTextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isReady ? Colors.black : Colors.grey.shade600,
+                          color: isReady ? Colors.black : Colors.white,
                         ),
                       ),
                     ),

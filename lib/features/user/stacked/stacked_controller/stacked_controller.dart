@@ -89,7 +89,11 @@ class StackedLocationController extends GetxController {
   void toggleTripType(bool isRound) => isRoundTrip.value = isRound;
 
   void selectVehicle(StackedVehicleModel vehicle) {
-    selectedVehicle.value = vehicle;
+    if (selectedVehicle.value?.vehicleType == vehicle.vehicleType) {
+      selectedVehicle.value = null;
+    } else {
+      selectedVehicle.value = vehicle;
+    }
   }
 
   String? normalizeVehicleCategory(String? rawVehicleType) {

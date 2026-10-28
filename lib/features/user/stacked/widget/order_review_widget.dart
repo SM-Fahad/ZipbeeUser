@@ -84,17 +84,27 @@ class OrderReviewWidget extends StatelessWidget {
 
   // Reusable review order button
   Widget _reviewOrderButton() {
+    final bool isReady = total > 0 &&
+        vehicleController.selectedVehicle.value != null &&
+        vehicleController.hasUserSelectedVehicle.value;
+
     return FilledButton(
-      onPressed: onReviewOrderPressed ?? _defaultReviewOrderAction,
+      onPressed: isReady
+          ? (onReviewOrderPressed ?? _defaultReviewOrderAction)
+          : null,
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        backgroundColor: isReady ? Colors.amber : Colors.grey.shade300,
+        foregroundColor: isReady ? Colors.black : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       child: Text(
         'Review Order',
-        style: getTextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        style: getTextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: isReady ? Colors.black : Colors.white,
+        ),
       ),
     );
   }
