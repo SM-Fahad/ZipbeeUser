@@ -1,6 +1,6 @@
 import 'package:ZipBee/core/common/styles/global_text_style.dart';
+import 'package:ZipBee/core/utils/constants/app_colors.dart';
 import 'package:ZipBee/features/user/Veicale_Type_on_Exprees_Delivery/controller/vehicle_secation_controller.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -36,12 +36,26 @@ class BottomSummary extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Total (incl. GST):',
-                    style: getTextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: CupertinoColors.secondaryLabel,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Total ',
+                          style: getTextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryFontColor,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '(incl GST)',
+                          style: getTextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.normal,
+                            color: AppColors.primaryFontColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Obx(
@@ -91,7 +105,7 @@ class BottomSummary extends StatelessWidget {
                   child: Text(
                     'Review Order',
                     style: getTextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
