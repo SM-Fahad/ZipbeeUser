@@ -14,6 +14,7 @@ build/
 
 # Android specific ignores
 .gradle/
+temp_auto_push.bat
 local.properties
 **/android/key.properties
 **/*.keystore
@@ -29,4 +30,5 @@ local.properties
 **/DerivedData/
 **/.DS_Store
 
-.env 
+.env .gitignore
+branch_structure.json

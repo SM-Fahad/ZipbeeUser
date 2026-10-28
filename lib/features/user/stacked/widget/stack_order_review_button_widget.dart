@@ -178,13 +178,30 @@ class StackedOrderReviewButtonStatic extends StatelessWidget {
                                                   CrossAxisAlignment.start,
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Text(
-                                                  'Total (incl. GST):',
-                                                  style: getTextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: AppColors
-                                                        .primaryFontColor,
+                                                Text.rich(
+                                                  TextSpan(
+                                                    children: [
+                                                      TextSpan(
+                                                        text: 'Total ',
+                                                        style: getTextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: AppColors
+                                                              .primaryFontColor,
+                                                        ),
+                                                      ),
+                                                      TextSpan(
+                                                        text: '(incl GST)',
+                                                        style: getTextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight:
+                                                              FontWeight.normal,
+                                                          color: AppColors
+                                                              .primaryFontColor,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                                 const SizedBox(height: 2),
@@ -279,7 +296,7 @@ class StackedOrderReviewButtonStatic extends StatelessWidget {
                       child: Text(
                         'Review Order',
                         style: getTextStyle(
-                          fontSize: 16,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: isReady ? Colors.black : Colors.white,
                         ),
