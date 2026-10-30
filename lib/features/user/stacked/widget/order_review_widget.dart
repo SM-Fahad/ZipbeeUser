@@ -1,8 +1,8 @@
 import 'package:ZipBee/core/common/styles/global_text_style.dart';
+import 'package:ZipBee/core/utils/constants/app_colors.dart';
 import 'package:ZipBee/features/user/stacked/order_stacked_delivery/controller/stacked_order_controller.dart';
 import 'package:ZipBee/features/user/stacked/order_stacked_delivery/widget/show_order_confirmation_dialog.dart';
 import 'package:ZipBee/features/user/vehicle_type/controller/controller.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -61,12 +61,26 @@ class OrderReviewWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Total (incl. GST):',
-          style: getTextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: CupertinoColors.secondaryLabel,
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Total ',
+                style: getTextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryFontColor,
+                ),
+              ),
+              TextSpan(
+                text: '(incl GST)',
+                style: getTextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.normal,
+                  color: AppColors.primaryFontColor,
+                ),
+              ),
+            ],
           ),
         ),
         SizedBox(height: 4),
@@ -84,17 +98,27 @@ class OrderReviewWidget extends StatelessWidget {
 
   // Reusable review order button
   Widget _reviewOrderButton() {
+    final bool isReady = total > 0 &&
+        vehicleController.selectedVehicle.value != null &&
+        vehicleController.hasUserSelectedVehicle.value;
+
     return FilledButton(
-      onPressed: onReviewOrderPressed ?? _defaultReviewOrderAction,
+      onPressed: isReady
+          ? (onReviewOrderPressed ?? _defaultReviewOrderAction)
+          : null,
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        backgroundColor: isReady ? Colors.amber : Colors.grey.shade300,
+        foregroundColor: isReady ? Colors.black : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       child: Text(
         'Review Order',
-        style: getTextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        style: getTextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          color: isReady ? Colors.black : Colors.white,
+        ),
       ),
     );
   }

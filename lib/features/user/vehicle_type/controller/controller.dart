@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 
 class StackedVehicleController extends GetxController {
   final selectedVehicle = Rxn<StackVehicle>();
+  final hasUserSelectedVehicle = false.obs;
   final selectedServices = <StackedAdditionalService>[].obs;
   final calculationHistory = <String>[].obs;
 
@@ -115,7 +116,7 @@ class StackedVehicleController extends GetxController {
       (vehicle) => vehicle.id == parsedSelectedVehicleId,
     );
 
-    if (matchedVehicle != null) {
+    if (matchedVehicle != null && hasUserSelectedVehicle.value) {
       selectedVehicle.value = matchedVehicle;
       _syncTopVehicleCategory(matchedVehicle.type);
       _updateHistory();
@@ -184,11 +185,13 @@ class StackedVehicleController extends GetxController {
   void selectVehicle(StackVehicle vehicle) {
     if (selectedVehicle.value == vehicle) {
       selectedVehicle.value = null;
+      hasUserSelectedVehicle.value = false;
       _syncTopVehicleCategory(null);
       selectedServices.clear();
       calculationHistory.clear();
     } else {
       selectedVehicle.value = vehicle;
+      hasUserSelectedVehicle.value = true;
       _syncTopVehicleCategory(vehicle.type);
       selectedServices.clear();
       _updateHistory();
@@ -209,6 +212,7 @@ class StackedVehicleController extends GetxController {
 
     try {
       // Optimistically update UI first
+      hasUserSelectedVehicle.value = true;
       selectedVehicle.value = vehicle;
       _syncTopVehicleCategory(vehicle.type);
       selectedServices.clear();
@@ -238,6 +242,7 @@ class StackedVehicleController extends GetxController {
       } else {
         debugPrint("❌ Failed to update vehicle (Status: $status)");
         // Revert UI on failure
+        hasUserSelectedVehicle.value = false;
         selectedVehicle.value = null;
         _syncTopVehicleCategory(null);
         selectedServices.clear();
@@ -250,6 +255,7 @@ class StackedVehicleController extends GetxController {
     } catch (e) {
       debugPrint("❌ Error toggling vehicle: $e");
       // Revert UI on error
+      hasUserSelectedVehicle.value = false;
       selectedVehicle.value = null;
       _syncTopVehicleCategory(null);
       selectedServices.clear();
