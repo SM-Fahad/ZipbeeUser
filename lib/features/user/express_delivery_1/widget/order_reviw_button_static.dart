@@ -1,6 +1,6 @@
 import 'package:ZipBee/core/common/styles/global_text_style.dart';
+import 'package:ZipBee/core/utils/constants/app_colors.dart';
 import 'package:ZipBee/features/user/express_delivery_1/controller/express_controller_1.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -22,12 +22,26 @@ class OrderReviwButtonStatic extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Total (incl. GST):',
-                  style: getTextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: CupertinoColors.secondaryLabel,
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Total ',
+                        style: getTextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryFontColor,
+                        ),
+                      ),
+                      TextSpan(
+                        text: '(incl GST)',
+                        style: getTextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.normal,
+                          color: AppColors.primaryFontColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Obx(
@@ -61,7 +75,14 @@ class OrderReviwButtonStatic extends StatelessWidget {
                       width: 30,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Text('Review Order', style: TextStyle(color: Colors.black)),
+                  : Text(
+                      'Review Order',
+                      style: getTextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
             ),
           ),
 

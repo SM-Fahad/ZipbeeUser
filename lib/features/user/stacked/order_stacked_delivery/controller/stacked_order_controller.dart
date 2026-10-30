@@ -144,7 +144,13 @@ class StackedOrderController extends GetxController {
 
     final selectedVehicleId = _toInt(orderData['vehicle_type_id']);
     final rawVehicleTypes = deliveryTypeMap?['vehicle_types'];
-    if (selectedVehicleId != null && rawVehicleTypes is List) {
+    bool userSelected = false;
+    try {
+      userSelected =
+          Get.find<StackedVehicleController>().hasUserSelectedVehicle.value;
+    } catch (_) {}
+
+    if (userSelected && selectedVehicleId != null && rawVehicleTypes is List) {
       for (final item in rawVehicleTypes) {
         if (item is! Map<String, dynamic>) continue;
         final nestedVehicle = item['vehicle_type'] as Map<String, dynamic>?;
@@ -157,9 +163,11 @@ class StackedOrderController extends GetxController {
           break;
         }
       }
+    } else if (!userSelected) {
+      pricingVehicleName.value = '';
     }
 
-    if (pricingVehicleName.value.isEmpty) {
+    if (userSelected && pricingVehicleName.value.isEmpty) {
       try {
         final vehicleCtrl = Get.find<StackedVehicleController>();
         pricingVehicleName.value =
@@ -752,6 +760,7 @@ class StackedOrderController extends GetxController {
     try {
       final vc = Get.find<StackedVehicleController>();
       vc.selectedVehicle.value = null;
+      vc.hasUserSelectedVehicle.value = false;
       vc.selectedServices.clear();
       vc.calculationHistory.clear();
     } catch (_) {}
