@@ -9,7 +9,6 @@ build/
 /build/
 
 # Environment files
-.env
 !.env.example
 
 # Android specific ignores
@@ -29,5 +28,6 @@ local.properties
 **/DerivedData/
 **/.DS_Store
 
-.env 
 .gitignore
+config.bat
+node_modules
